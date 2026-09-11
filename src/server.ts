@@ -65,9 +65,21 @@ function patchOutboundFetchLogging() {
         try {
             const response = await originalFetch(input, init);
             const durationMs = Date.now() - startedAt;
-            console.log(
-                `[outbound ←] ${method} ${url} — ${response.status} (${durationMs}ms)`,
-            );
+
+            if (response.status >= 400) {
+                // Đọc body lỗi để biết bên thứ 3 (Groq...) từ chối vì lý do gì.
+                // clone() để không "tiêu" mất body — code gọi fetch phía sau vẫn đọc được response gốc bình thường.
+                const errorBody = await response.clone().text();
+                console.error(
+                    `[outbound ←] ${method} ${url} — ${response.status} (${durationMs}ms)\n` +
+                    `  body: ${errorBody.slice(0, 2000)}`,
+                );
+            } else {
+                console.log(
+                    `[outbound ←] ${method} ${url} — ${response.status} (${durationMs}ms)`,
+                );
+            }
+
             return response;
         } catch (error) {
             const durationMs = Date.now() - startedAt;
